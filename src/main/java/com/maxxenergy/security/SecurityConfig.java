@@ -89,28 +89,33 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // allow CORS preflight
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                                // 1) allow CORS preflight
+                                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // open auth endpoints
-                        .requestMatchers("/api/auth/**").permitAll()
+                                // 2) open auth endpoints
+                                .requestMatchers("/api/auth/**").permitAll()
 
-                        // protect profile endpoints explicitly (redundant if you keep /api/** below, but clearer)
-                        .requestMatchers("/api/users/**").authenticated()
+                                // 3) allow reading price rates (public)
+                                .requestMatchers(HttpMethod.GET, "/api/rates/**").permitAll()
 
-                        // default for the rest of the API = authenticated
-                        .requestMatchers("/api/**").authenticated()
+                                // 4) protect profile endpoints
+                                .requestMatchers("/api/users/**").authenticated()
 
-                        // everything else (non-API like static files) can be public
-                        .anyRequest().permitAll()
+                                // 5) everything else under /api must be authenticated
+                                .requestMatchers("/api/**").authenticated()
+
+                                // 6) non-API (static files, index.html) can be public:
+                                .anyRequest().permitAll()
+                        // --- OR, if you prefer to lock down everything by default:
+                        // .anyRequest().authenticated()
                 )
                 .exceptionHandling(e -> e.authenticationEntryPoint(
-                        (req, res, ex) -> res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized")
-                ))
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                        (req, res, ex) -> res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized")))
+                .addFilterBefore(jwtFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
+
 
     @Bean
     AuthenticationManager authManager(AuthenticationConfiguration c) throws Exception {
@@ -129,5 +134,8 @@ public class SecurityConfig {
         src.registerCorsConfiguration("/**", cfg);
         return src;
     }
+
+
+
 }
 
